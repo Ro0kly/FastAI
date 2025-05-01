@@ -50,11 +50,11 @@ final class MessageCell: UITableViewCell {
         messageLabel.text = message.text
         messageLabel.textColor = message.isUser ? .white : .black
         messageLabel.backgroundColor = message.isUser ? .systemBlue : .systemGray5
+        messageLabel.widthAnchor.constraint(equalToConstant: UIScreen.main.bounds.width*0.7).isActive = true
+
         if message.isUser {
-            messageLabel.widthAnchor.constraint(equalToConstant: UIScreen.main.bounds.width*0.5).isActive = true
             messageLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16).isActive = true
         } else {
-            messageLabel.widthAnchor.constraint(equalToConstant: UIScreen.main.bounds.width*0.8).isActive = true
             messageLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16).isActive = true
         }
     }

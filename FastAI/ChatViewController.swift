@@ -7,6 +7,51 @@
 
 import UIKit
 
+class SendButton: UIButton {
+    
+    private let activityIndicator = UIActivityIndicatorView(style: .medium)
+    let image = UIImage(systemName: "arrow.forward.circle.fill")?
+        .withConfiguration(UIImage.SymbolConfiguration(pointSize: 36, weight: .bold)).withTintColor(.blue)
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setup()
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    func setup() {
+        
+        setImage(image, for: .normal)
+        
+        activityIndicator.translatesAutoresizingMaskIntoConstraints = false
+        activityIndicator.hidesWhenStopped = true
+        
+        addSubview(activityIndicator)
+        
+        NSLayoutConstraint.activate([
+            activityIndicator.centerXAnchor.constraint(equalTo: centerXAnchor),
+            activityIndicator.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+        
+        addSubview(activityIndicator)
+    }
+    
+    func showLoading() {
+        isEnabled = false
+        setImage(nil, for: .normal)
+        activityIndicator.startAnimating()
+    }
+    
+    func hideLoading() {
+        activityIndicator.stopAnimating()
+        setImage(image, for: .normal)
+        isEnabled = true
+    }
+}
+
 final class ChatViewController: UIViewController {
     
     private let gptService: GPTService = .init()
@@ -33,11 +78,8 @@ final class ChatViewController: UIViewController {
         return tv
     }()
     
-    private let sendButton: UIButton = {
-        let b = UIButton.init(type: .system)
-        let image = UIImage(systemName: "arrow.forward.circle.fill")?
-            .withConfiguration(UIImage.SymbolConfiguration(pointSize: 26, weight: .bold)).withTintColor(.blue)
-        b.setImage(image, for: .normal)
+    private let sendButton: SendButton = {
+        let b = SendButton.init()
         b.translatesAutoresizingMaskIntoConstraints = false
         return b
     }()
@@ -101,63 +143,47 @@ final class ChatViewController: UIViewController {
     private func sendMessage() {
         inputTextView.text = "Привет! Назови мне 4 принципа ООП"
         guard let text = inputTextView.text, !text.isEmpty else { return }
+        messages.append(.init(text: text, isUser: true))
+        tableView.insertRows(at: [.init(row: messages.count-1, section: 0)], with: .automatic)
+        tableView.reloadRows(at: [.init(row: messages.count-1, section: 0)], with: .none)
+        tableView.scrollToRow(at: .init(row: messages.count-1, section: 0), at: .bottom, animated: true)
         askGPT(text: text)
     }
     
     private func askGPT(text: String) {
-        print("A", Thread.current)
-        Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self = self else { return }
-            print("B", Thread.current)
+        sendButton.showLoading()
+        Task {
             do {
-                print("C", Thread.current)
                 let response = try await gptService.sendMessage(messageText: text)
-                print("D", Thread.current)
-                await MainActor.run { [weak self] in
-                    guard let self = self else { return }
-                    print("E", Thread.current)
-                    processResponse(response)
-                    print("F", Thread.current)
-                }
-                print("G", Thread.current)
+                await processResponse(response)
             } catch {
                 print("REQUEST Error:", error)
             }
-            print("H", Thread.current)
         }
-        print("K", Thread.current)
-//        gptService.sendMessage(messageText: text) { [weak self] result in
-//            DispatchQueue.main.async {
-//                switch result {
-//                case .success(let success):
-//                    print("ASK GPT SUCCESS:", success)
-//                    self?.processResponse(success)
-//                case .failure(let failure):
-//                    print("ASK GPT FAILURE:", failure)
-//                }
-//            }
-//        }
     }
     
-    private func processResponse(_ response: GPTResponseModel) {
-        guard let text = inputTextView.text else { return }
-        messages.append(.init(text: text, isUser: true))
+    private func processResponse(_ response: GPTResponseModel) async {
         guard let firstAlternative = response.result.alternatives.first else { return }
-        messages.append(.init(text: firstAlternative.message.text, isUser: false))
-        tableView.reloadData()
-        scrollToBottom()
-    }
-    
-    private func scrollToBottom() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let numberOfSections = self?.tableView.numberOfSections, let numberOfRows = self?.tableView.numberOfRows(inSection: numberOfSections - 1) else {
-                return
-            }
-            let lastRow = numberOfRows - 1
-            let lastSection = numberOfSections - 1
-            if numberOfRows - 1 >= 0 {
-                let indexPath = IndexPath(row: lastRow, section: lastSection)
-                self?.tableView.scrollToRow(at: indexPath, at: .bottom, animated: true)
+        let parts = firstAlternative.message.text.components(separatedBy: "\n")
+        Task {
+            for (i,p) in parts.enumerated() {
+                if i == 0 {
+                    messages.append(.init(text: p, isUser: false))
+                    tableView.insertRows(at: [.init(row: messages.count-1, section: 0)], with: .automatic)
+                    tableView.reloadRows(at: [.init(row: messages.count-1, section: 0)], with: .none)
+                    tableView.scrollToRow(at: .init(row: messages.count-1, section: 0), at: .bottom, animated: true)
+                } else {
+                    messages[messages.count-1].text.append("\n" + p)
+                    tableView.reloadRows(at: [.init(row: messages.count-1, section: 0)], with: .none)
+                    tableView.scrollToRow(at: .init(row: messages.count-1, section: 0), at: .bottom, animated: true)
+                }
+                try await Task.sleep(nanoseconds: 500_000_000)
+                if i == parts.count - 1 {
+                    print("done")
+                    await MainActor.run {
+                        sendButton.hideLoading()
+                    }
+                }
             }
         }
     }

@@ -8,6 +8,6 @@
 import Foundation
 
 struct MessageBlobModel {
-    let text: String
+    var text: String
     let isUser: Bool
 }
