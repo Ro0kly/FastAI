@@ -7,55 +7,9 @@
 
 import UIKit
 
-class SendButton: UIButton {
-    
-    private let activityIndicator = UIActivityIndicatorView(style: .medium)
-    let image = UIImage(systemName: "arrow.forward.circle.fill")?
-        .withConfiguration(UIImage.SymbolConfiguration(pointSize: 36, weight: .bold)).withTintColor(.blue)
-    
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        setup()
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
-    func setup() {
-        
-        setImage(image, for: .normal)
-        
-        activityIndicator.translatesAutoresizingMaskIntoConstraints = false
-        activityIndicator.hidesWhenStopped = true
-        
-        addSubview(activityIndicator)
-        
-        NSLayoutConstraint.activate([
-            activityIndicator.centerXAnchor.constraint(equalTo: centerXAnchor),
-            activityIndicator.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
-        
-        addSubview(activityIndicator)
-    }
-    
-    func showLoading() {
-        isEnabled = false
-        setImage(nil, for: .normal)
-        activityIndicator.startAnimating()
-    }
-    
-    func hideLoading() {
-        activityIndicator.stopAnimating()
-        setImage(image, for: .normal)
-        isEnabled = true
-    }
-}
-
 final class ChatViewController: UIViewController {
     
-    private let gptService: GPTService = .init()
-    private var messages: [MessageBlobModel] = []
+    private let chatViewModel: ChatViewModel = .init()
     private var textViewHeightConstraint: NSLayoutConstraint!
     
     private let tableView: UITableView = {
@@ -91,15 +45,26 @@ final class ChatViewController: UIViewController {
         textViewHeightConstraint.isActive = true
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(adjustTextViewHeight),
+            selector: #selector(handleInputTextView),
             name: UITextView.textDidChangeNotification,
             object: nil
         )
+        chatViewModel.onMessageUpdated = { [weak self] in
+            self?.tableView.reloadData()
+            if let messageCount = self?.chatViewModel.messages.count {
+                print(messageCount)
+                self?.tableView.scrollToRow(
+                    at: .init(row: messageCount - 1, section: 0),
+                    at: .bottom,
+                    animated: true
+                )
+            }
+        }
     }
     
-    @objc private func adjustTextViewHeight() {
-        let fixedWidth = inputTextView.frame.width
-        let newSize = inputTextView.sizeThatFits(CGSize(width: fixedWidth, height: .greatestFiniteMagnitude))
+    @objc private func handleInputTextView() {
+        let inputTextViewWidth = inputTextView.frame.width
+        let newSize = inputTextView.sizeThatFits(CGSize(width: inputTextViewWidth, height: .greatestFiniteMagnitude))
         
         let maxHeight: CGFloat = 120
         let newHeight = min(newSize.height, maxHeight)
@@ -141,64 +106,35 @@ final class ChatViewController: UIViewController {
     
     @objc
     private func sendMessage() {
+        startProcessRequest()
         inputTextView.text = "Привет! Назови мне 4 принципа ООП"
         guard let text = inputTextView.text, !text.isEmpty else { return }
-        messages.append(.init(text: text, isUser: true))
-        tableView.insertRows(at: [.init(row: messages.count-1, section: 0)], with: .automatic)
-        tableView.reloadRows(at: [.init(row: messages.count-1, section: 0)], with: .none)
-        tableView.scrollToRow(at: .init(row: messages.count-1, section: 0), at: .bottom, animated: true)
-        askGPT(text: text)
+        chatViewModel.sendMessage(text, requestFinished: { [weak self] in
+            self?.endProcessRequest()
+        })
     }
-    
-    private func askGPT(text: String) {
+        
+    private func startProcessRequest() {
         sendButton.showLoading()
-        Task {
-            do {
-                let response = try await gptService.sendMessage(messageText: text)
-                await processResponse(response)
-            } catch {
-                print("REQUEST Error:", error)
-            }
-        }
+        inputTextView.isUserInteractionEnabled = false
     }
     
-    private func processResponse(_ response: GPTResponseModel) async {
-        guard let firstAlternative = response.result.alternatives.first else { return }
-        let parts = firstAlternative.message.text.components(separatedBy: "\n")
-        Task {
-            for (i,p) in parts.enumerated() {
-                if i == 0 {
-                    messages.append(.init(text: p, isUser: false))
-                    tableView.insertRows(at: [.init(row: messages.count-1, section: 0)], with: .automatic)
-                    tableView.reloadRows(at: [.init(row: messages.count-1, section: 0)], with: .none)
-                    tableView.scrollToRow(at: .init(row: messages.count-1, section: 0), at: .bottom, animated: true)
-                } else {
-                    messages[messages.count-1].text.append("\n" + p)
-                    tableView.reloadRows(at: [.init(row: messages.count-1, section: 0)], with: .none)
-                    tableView.scrollToRow(at: .init(row: messages.count-1, section: 0), at: .bottom, animated: true)
-                }
-                try await Task.sleep(nanoseconds: 500_000_000)
-                if i == parts.count - 1 {
-                    print("done")
-                    await MainActor.run {
-                        sendButton.hideLoading()
-                    }
-                }
-            }
-        }
+    private func endProcessRequest() {
+        inputTextView.isUserInteractionEnabled = true
+        sendButton.hideLoading()
     }
 }
 
 extension ChatViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return messages.count
+        return chatViewModel.messages.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         guard let cell = tableView.dequeueReusableCell(withIdentifier: MessageCell.id, for: indexPath) as? MessageCell else {
             return .init()
         }
-        cell.configure(with: messages[indexPath.row])
+        cell.configure(with: chatViewModel.messages[indexPath.row])
         return cell
     }
 }
