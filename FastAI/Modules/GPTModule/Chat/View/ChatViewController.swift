@@ -9,7 +9,8 @@ import UIKit
 
 final class ChatViewController: UIViewController {
     
-    private let chatViewModel: ChatViewModel = .init()
+    let viewModel: ChatViewModel
+    
     private var textViewHeightConstraint: NSLayoutConstraint!
     
     private let tableView: UITableView = {
@@ -18,6 +19,7 @@ final class ChatViewController: UIViewController {
         t.separatorStyle = .none
         t.backgroundColor = .systemGray6
         t.translatesAutoresizingMaskIntoConstraints = false
+        t.contentInset = .init(top: 12, left: 0, bottom: 12, right: 0)
         return t
     }()
     
@@ -38,28 +40,43 @@ final class ChatViewController: UIViewController {
         return b
     }()
     
+    init(viewModel: ChatViewModel) {
+        self.viewModel = viewModel
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         textViewHeightConstraint = inputTextView.heightAnchor.constraint(equalToConstant: 36)
         textViewHeightConstraint.isActive = true
+        
+        viewModel.showWelcomeMessage()
+        
+        viewModel.onMessageUpdated = { [weak self] in
+            self?.tableView.reloadData()
+            if let messageCount = self?.viewModel.messages.count {
+                print(messageCount)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    self?.tableView.scrollToRow(
+                        at: .init(row: messageCount - 1, section: 0),
+                        at: .bottom,
+                        animated: true
+                    )
+                }
+            }
+        }
+        
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleInputTextView),
             name: UITextView.textDidChangeNotification,
             object: nil
         )
-        chatViewModel.onMessageUpdated = { [weak self] in
-            self?.tableView.reloadData()
-            if let messageCount = self?.chatViewModel.messages.count {
-                print(messageCount)
-                self?.tableView.scrollToRow(
-                    at: .init(row: messageCount - 1, section: 0),
-                    at: .bottom,
-                    animated: true
-                )
-            }
-        }
     }
     
     @objc private func handleInputTextView() {
@@ -78,6 +95,7 @@ final class ChatViewController: UIViewController {
     }
 
     func setupUI() {
+        navigationItem.setHidesBackButton(true, animated: false)
         view.backgroundColor = .white
         title = "AI Чат"
         view.addSubview(tableView)
@@ -106,10 +124,11 @@ final class ChatViewController: UIViewController {
     
     @objc
     private func sendMessage() {
-        startProcessRequest()
         inputTextView.text = "Привет! Назови мне 4 принципа ООП"
+//        Спасибо! А какой вопрос я тебе задал до этого?
         guard let text = inputTextView.text, !text.isEmpty else { return }
-        chatViewModel.sendMessage(text, requestFinished: { [weak self] in
+        startProcessRequest()
+        viewModel.sendMessage(text, requestFinished: { [weak self] in
             self?.endProcessRequest()
         })
     }
@@ -127,14 +146,14 @@ final class ChatViewController: UIViewController {
 
 extension ChatViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return chatViewModel.messages.count
+        return viewModel.messages.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         guard let cell = tableView.dequeueReusableCell(withIdentifier: MessageCell.id, for: indexPath) as? MessageCell else {
             return .init()
         }
-        cell.configure(with: chatViewModel.messages[indexPath.row])
+        cell.configure(with: viewModel.messages[indexPath.row])
         return cell
     }
 }

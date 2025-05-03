@@ -8,7 +8,7 @@
 import Foundation
 
 struct GPTRequestModel: Codable {
-    let modelUri: String
+    let modelUri: String?
     let completionOptions: CompletionOptions
     let messages: [Message]
     

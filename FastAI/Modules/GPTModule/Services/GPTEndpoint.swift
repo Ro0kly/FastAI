@@ -8,7 +8,7 @@
 import Foundation
 
 enum GPTEndpoint: Endpoint {
-    case askAssistant(modelUri: String, apiKey: String, text: String)
+    case askAssistant(modelUri: String?, apiKey: String?, text: String)
 }
 
 extension GPTEndpoint {
@@ -30,7 +30,7 @@ extension GPTEndpoint {
         switch self {
         case .askAssistant(_, let apiKey, _):
             return [
-                "Authorization": "Bearer \(apiKey)",
+                "Authorization": "Bearer \(apiKey ?? "")",
                 "Content-Type": "application/json"
             ]
         }

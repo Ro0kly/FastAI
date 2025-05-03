@@ -7,6 +7,8 @@
 
 import Foundation
 
+typealias NetworkCompletion<T> = (Result<T, NetworkError>) -> Void
+
 final class NetworkService {
     private let session: URLSession
     
@@ -14,8 +16,7 @@ final class NetworkService {
         self.session = session
     }
     
-    func request<T: Decodable>(_ endpoint: Endpoint, responseType: T.Type, completion: @escaping (Result<T, NetworkError>) -> Void
-    ) {
+    func request<T: Decodable>(_ endpoint: Endpoint, responseType: T.Type, completion: @escaping NetworkCompletion<T>) {
         guard let urlRequest = endpoint.urlRequest else {
             completion(.failure(.badURL))
             return

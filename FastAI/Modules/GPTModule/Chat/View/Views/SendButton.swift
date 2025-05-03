@@ -8,7 +8,7 @@
 import Foundation
 import UIKit
 
-class SendButton: UIButton {
+final class SendButton: UIButton {
     
     private let activityIndicator = UIActivityIndicatorView(style: .medium)
     

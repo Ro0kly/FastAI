@@ -7,16 +7,18 @@
 
 import Foundation
 
-class GPTService {
-    private let apiKey = ""
-    private let modelUri = ""
+final class GPTService {
     private let neworkService: NetworkService
+    private let userDataService: UserDataService
     
-    init(neworkService: NetworkService = .init()) {
+    init(neworkService: NetworkService, userDataService: UserDataService) {
         self.neworkService = neworkService
+        self.userDataService = userDataService
     }
     
     func sendMessage(messageText: String, completion: @escaping (Result<GPTResponseModel, NetworkError>) -> Void) {
+        let apiKey: String? = userDataService.getApiKey()
+        let modelUri: String? = userDataService.getModelUri()
         let endpoint = GPTEndpoint.askAssistant(modelUri: modelUri, apiKey: apiKey, text: messageText)
         neworkService.request(endpoint, responseType: GPTResponseModel.self) { result in
             switch result {

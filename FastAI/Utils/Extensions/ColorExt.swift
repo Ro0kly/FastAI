@@ -18,4 +18,5 @@ extension Color {
         )
     }
     static let mainColor = Color.init(hex: 0x1D2633)
+    static let secondColor = Color.init(hex: 0x17D7C7)
 }
