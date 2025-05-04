@@ -13,6 +13,7 @@ enum NetworkError: Error, CustomStringConvertible {
     case badDecoding
     case badResponse(Int)
     case unknown(Error)
+    case longResponse
     
     var description: String {
         switch self {
@@ -26,6 +27,8 @@ enum NetworkError: Error, CustomStringConvertible {
             return "Server Error: \(value)"
         case .unknown(let error):
             return "Unknow: \(error)"
+        case .longResponse:
+            return "Server is busy"
         }
     }
 }

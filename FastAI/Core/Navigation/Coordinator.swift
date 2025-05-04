@@ -22,11 +22,9 @@ final class Coordinator {
     func start() {
         window.rootViewController = navigationController
         window.makeKeyAndVisible()
-        
-        let isApiKeyExist = KeychainService.shared.get(forKey: AuthConstants.modelUri.description) != nil
-        let isModelUriExit = KeychainService.shared.get(forKey: AuthConstants.apiKey.description) != nil
-        print("api key:", isApiKeyExist)
-        if isApiKeyExist && isModelUriExit {
+        let isApiKeyExist = userDataService.getApiKey() != nil
+        let isModelUriExit = userDataService.getModelUri() != nil
+        if isApiKeyExist || isModelUriExit {
             showChat()
         } else {
             showAuth()
@@ -34,20 +32,38 @@ final class Coordinator {
     }
     
     func showAuth() {
+        userDataService.clearUserData()
         let authVM = AuthViewModel(userDataService: userDataService)
         authVM.onLogingSuccess = { [weak self] in
             self?.showChat()
         }
         let authView = AuthView(viewModel: authVM)
         let authVC = authView.makeViewController()
-        navigationController.pushViewController(authVC, animated: false)
+        navigationController.setViewControllers([authVC], animated: true)
     }
     
     func showChat() {
         let networkService = NetworkService()
         let gptService = GPTService(neworkService: networkService, userDataService: userDataService)
         let chatViewModel = ChatViewModel(gptService: gptService)
+        chatViewModel.onGoToImageGeneration = { [weak self] in
+            self?.showImageGeneration()
+        }
+        chatViewModel.onLogout = { [weak self] in
+            self?.showAuth()
+        }
         let chatVC = ChatViewController(viewModel: chatViewModel)
-        navigationController.pushViewController(chatVC, animated: true)
+        navigationController.setViewControllers([chatVC], animated: true)
+    }
+    
+    func showImageGeneration() {
+        let networkService = NetworkService()
+        let gptService = GPTService(neworkService: networkService, userDataService: userDataService)
+        let imageGenerationViewModel = ImageGenerationViewModel(gptService: gptService)
+        imageGenerationViewModel.onGoToChat = { [weak self] in
+            self?.showChat()
+        }
+        let imageGenerationVC = ImageGeneratonViewController(viewModel: imageGenerationViewModel)
+        navigationController.setViewControllers([imageGenerationVC], animated: true)
     }
 }

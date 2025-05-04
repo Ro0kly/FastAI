@@ -11,6 +11,8 @@ final class ChatViewModel {
     private let gptService: GPTService
     private(set) var messages: [MessageBlobModel] = []
     
+    var onGoToImageGeneration: (() -> Void)?
+    var onLogout: (() -> Void)?
     var onMessageUpdated: (() -> Void)?
     
     init(gptService: GPTService) {

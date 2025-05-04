@@ -52,15 +52,12 @@ final class ChatViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        textViewHeightConstraint = inputTextView.heightAnchor.constraint(equalToConstant: 36)
-        textViewHeightConstraint.isActive = true
         
         viewModel.showWelcomeMessage()
         
         viewModel.onMessageUpdated = { [weak self] in
             self?.tableView.reloadData()
             if let messageCount = self?.viewModel.messages.count {
-                print(messageCount)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     self?.tableView.scrollToRow(
                         at: .init(row: messageCount - 1, section: 0),
@@ -95,7 +92,19 @@ final class ChatViewController: UIViewController {
     }
 
     func setupUI() {
-        navigationItem.setHidesBackButton(true, animated: false)
+        navigationItem.rightBarButtonItem = .init(
+            image: UIImage(systemName: "photo"),
+            style: .plain,
+            target: self,
+            action: #selector(showImageGeneration)
+        )
+        navigationItem.leftBarButtonItem = .init(
+            title: "Выход",
+            style: .plain,
+            target: self,
+            action: #selector(logout)
+        )
+        
         view.backgroundColor = .white
         title = "AI Чат"
         view.addSubview(tableView)
@@ -103,6 +112,9 @@ final class ChatViewController: UIViewController {
         view.addSubview(sendButton)
         tableView.delegate = self
         tableView.dataSource = self
+        
+        textViewHeightConstraint = inputTextView.heightAnchor.constraint(equalToConstant: 36)
+        textViewHeightConstraint.isActive = true
         
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -123,10 +135,20 @@ final class ChatViewController: UIViewController {
     }
     
     @objc
+    func showImageGeneration() {
+        viewModel.onGoToImageGeneration?()
+    }
+    
+    @objc
+    func logout() {
+        viewModel.onLogout?()
+    }
+
+    
+    @objc
     private func sendMessage() {
-        inputTextView.text = "Привет! Назови мне 4 принципа ООП"
-//        Спасибо! А какой вопрос я тебе задал до этого?
         guard let text = inputTextView.text, !text.isEmpty else { return }
+        inputTextView.text = ""
         startProcessRequest()
         viewModel.sendMessage(text, requestFinished: { [weak self] in
             self?.endProcessRequest()
@@ -136,10 +158,14 @@ final class ChatViewController: UIViewController {
     private func startProcessRequest() {
         sendButton.showLoading()
         inputTextView.isUserInteractionEnabled = false
+        navigationItem.rightBarButtonItem?.isHidden = true
+        navigationItem.leftBarButtonItem?.isHidden = true
     }
     
     private func endProcessRequest() {
         inputTextView.isUserInteractionEnabled = true
+        navigationItem.rightBarButtonItem?.isHidden = false
+        navigationItem.leftBarButtonItem?.isHidden = false
         sendButton.hideLoading()
     }
 }

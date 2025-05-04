@@ -60,4 +60,8 @@ final class UserDataService {
     func getModelUri() -> String? {
         return keychainService.get(forKey: AuthConstants.modelUri.description)
     }
+    func clearUserData() {
+        _ = KeychainService.shared.delete(forKey: AuthConstants.modelUri.description)
+        _ = KeychainService.shared.delete(forKey: AuthConstants.apiKey.description)
+    }
 }

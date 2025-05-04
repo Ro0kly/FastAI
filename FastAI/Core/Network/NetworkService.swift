@@ -21,7 +21,9 @@ final class NetworkService {
             completion(.failure(.badURL))
             return
         }
-        
+//        let requestId = UUID().uuidString
+//        print("--- START REQUEST: \(requestId) ---")
+//        print(urlRequest.cURL)
         session.dataTask(with: urlRequest) { data, response, error in
             if let error = error {
                 completion(.failure(.unknown(error)))
