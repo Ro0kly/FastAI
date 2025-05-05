@@ -1,4 +1,4 @@
-<h1>FastAI базируется на YandexGPT и YandexART API и представляет собой template для собсвтенного AI-приложения!</h1>
+<h1>FastAI базируется на YandexGPT / YandexART API и представляет собой template для собсвтенного AI-приложения!</h1>
 <div align="center">
   <img src="https://github.com/user-attachments/assets/5a5db0e1-81c7-4b65-92a1-7f0a11f05462" width="30%" />
   <img src="https://github.com/user-attachments/assets/d91d3316-3748-4ee7-b69b-a4bd961f9b44" width="30%" />
